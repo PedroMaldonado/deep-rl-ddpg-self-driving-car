@@ -1,10 +1,15 @@
 import random
+# Is a double-ended queue that allows append and pop operations from both ends. 
+# It's used here because it's efficient for the operations required by the replay buffer
 from collections import deque
 
+# Store finite number of experiences
+# past experiences are reused to train an agent
 
+# Experience replay
 class ReplayBuffer(object):
     def __init__(self, max_size):
-        self.max_size = max_size
+        self.max_size = max_size #  The maximum number of experiences the buffer can hold.
         self.cur_size = 0
         self.buffer = deque()
 

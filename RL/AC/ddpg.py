@@ -19,24 +19,24 @@ def play(train_indicator):
     action_dim = 1  # Steering angle
     state_dim = 21  # num of sensors input
 
-    episodes_num = 10
-    max_steps = 1000
+    episodes_num = 2
+    max_steps = 10
 
-    actor = ActorNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[5, 5], tau=tau, lr=lra)
-    critic = CriticNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[5, 5], tau=tau, lr=lrc)
-    buffer = ReplayBuffer(max_size=buffer_size, input_shape=state_dim, n_actions=action_dim)
+    actor = ActorNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[300, 600], tau=tau, lr=lra)
+    critic = CriticNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[300, 600], tau=tau, lr=lrc)
+    buffer = ReplayBuffer(buffer_size)
 
     env = TorcsEnv(vision=False, throttle=False, gear_change=False)
 
     for i in range(episodes_num):
-        print("Episode : {} Replay buffer {}".format(i, len(buffer)))
+        print("Episode : %s Replay buffer %s" % (i, len(buffer)))
         ob = env.reset(relaunch=True if i % 3 == 0 else False)
 
         state = np.hstack((ob.angle, ob.track, ob.trackPos))
         total_reward = 0
 
         for j in range(max_steps):
-            action_predicted = actor.network.forward_propagate(state.reshape(-1, 1))  # Forward pass
+            action_predicted = actor.network.forward_propagate(state.reshape(1, -1))  # Forward pass
             action_noisy = action_predicted + np.random.normal(0, 0.1, size=action_dim)  # Add some noise for exploration
 
             observation, reward, done, info = env.step(action_noisy[0])
@@ -47,35 +47,28 @@ def play(train_indicator):
                 batch = buffer.get_batch(batch_size)
                 states, actions, rewards, next_states, dones = zip(*batch)
 
+                # Convert data to NumPy arrays for batch processing
                 states = np.array(states)
                 actions = np.array(actions).reshape(-1, 1)
                 rewards = np.array(rewards)
-                # next_states = np.array(next_states)
                 next_states = np.array(next_states)
-                next_states = next_states.reshape(-1, state_dim)
                 dones = np.array(dones)
 
-                print("Shape of next_states: ", next_states.shape)
+                # Compute target Q values
                 next_actions = actor.target_network.forward_propagate(next_states)
-                print("Shape of next_actions: ", next_actions.shape)
-
-                # Ensure next_actions is properly shaped
-                if next_actions.shape[0] != next_states.shape[0]:
-                    next_actions = next_actions.reshape(next_states.shape[0], -1)  # Reshape next_actions to match next_states in the first dimension
-
-                # Now concatenate along axis 1 (columns)
-                combined_state_action = np.hstack((next_states, next_actions))
-                print("Shape of combined state-action: ", combined_state_action.shape)
-
-                target_q_values = critic.target_network.forward_propagate(combined_state_action)
+                target_q_values = critic.target_network.forward_propagate(np.hstack((next_states, next_actions)))
 
                 y_t = rewards + gamma * np.multiply((1 - dones), target_q_values)
 
+                # Update critic by minimizing the loss
                 critic.train(states, actions, y_t)
+
+                # Update actor policy using the sampled gradient
                 action_for_grad = actor.network.forward_propagate(states)
                 grads = critic.compute_action_gradients(states, action_for_grad)
                 actor.train(states, grads)
 
+                # Soft update target networks
                 actor.update_target_network()
                 critic.update_target_network()
 
@@ -85,7 +78,7 @@ def play(train_indicator):
             if done:
                 break
 
-        print("Episode: {}, Total Reward: {}".format(i, total_reward))
+        print(f"Episode: {i}, Total Reward: {total_reward}")
 
     env.end()
 

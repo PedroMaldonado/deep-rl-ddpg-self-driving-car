@@ -1,0 +1,4 @@
+0 -th Episode. 10 total steps. Total reward: 70.06407191152162. Time 2024-04-12 15:23:04
+1 -th Episode. 20 total steps. Total reward: 70.70693039705102. Time 2024-04-12 15:23:08
+0 -th Episode. 10 total steps. Total reward: 70.06407191152162. Time 2024-04-12 15:23:17
+1 -th Episode. 20 total steps. Total reward: 70.70693039705102. Time 2024-04-12 15:23:20
