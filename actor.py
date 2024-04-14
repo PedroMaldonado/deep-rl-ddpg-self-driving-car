@@ -8,9 +8,9 @@ class ActorNetwork:
         self.tau = tau
         self.lr = lr
         
-        # Initialize primary and target networks
-        self.network = NeuralNetwork(state_size, hidden_units, action_size)
-        self.target_network = NeuralNetwork(state_size, hidden_units, action_size)
+        # Initialize primary and target networks with tanh activation for the output layer
+        self.network = NeuralNetwork(state_size, hidden_units + [action_size], activation='relu')
+        self.target_network = NeuralNetwork(state_size, hidden_units + [action_size], activation='relu')
         
         # Manually copy weights for target network initialization
         self.target_network.weights = [np.copy(w) for w in self.network.weights]
@@ -20,20 +20,18 @@ class ActorNetwork:
         # Perform forward pass
         activations = self.network.forward_propagate(states)
         
-        # Convert action_gradients to deltas compatible with your MLP backpropagation
-        # This is a complex step: You need to ensure gradients are correctly transformed for your network's architecture
+        # Convert action_gradients to deltas suitable for your MLP's backpropagation
         deltas = self.custom_backward(action_gradients, activations)
         
         # Update network weights
         self.network.update_weights(activations, deltas, self.lr)
 
     def custom_backward(self, action_gradients, activations):
-        # Placeholder for converting action gradients from the critic to deltas suitable for backpropagation
-        # This involves a bit of mathematical manipulation to align dimensions and ensure gradients are propagated correctly
-        # Example:
+        # Properly transform action gradients to match network architecture
+        # Assume action_gradients are already negative as needed
         deltas = []
-        for grad, activation in zip(reversed(action_gradients), reversed(activations)):
-            delta = grad * self.network.sigmoid_derivative(activation)
+        for grad, activation in zip(action_gradients, reversed(activations[1:])):
+            delta = grad * self.network.apply_activation_derivative(activation)
             deltas.insert(0, delta)
         return deltas
 
@@ -46,4 +44,3 @@ class ActorNetwork:
         for idx, (main_biases, target_biases) in enumerate(zip(self.network.biases, self.target_network.biases)):
             target_biases = self.tau * main_biases + (1 - self.tau) * target_biases
             self.target_network.biases[idx] = target_biases
-
