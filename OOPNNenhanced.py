@@ -9,6 +9,7 @@ class NeuralNetwork:
 
         np.random.seed(42)  # Seed for reproducibility
 
+        
         for i in range(len(self.layer_sizes) - 1):
             # He initialization for ReLU or Glorot initialization for tanh and sigmoid
             if self.activation == 'relu' and i < len(self.layer_sizes) - 2:
@@ -36,12 +37,12 @@ class NeuralNetwork:
     def backward_propagate(self, y, activations):
         errors = [y - activations[-1]]
         deltas = [errors[-1] * self.apply_activation_derivative(activations[-1])]
-
+        
         for i in reversed(range(len(self.weights) - 1)):
             delta = np.dot(self.weights[i + 1].T, deltas[0]) * self.apply_activation_derivative(activations[i + 1])
             deltas.insert(0, delta)
         return deltas
-
+    
     def apply_activation_derivative(self, output):
         if self.activation == 'relu':
             return (output > 0).astype(float)
