@@ -7,9 +7,10 @@ class CriticNetwork:
         self.action_size = action_size
         self.tau = tau
         self.lr = lr
-        
-        self.network = NeuralNetwork(state_size + action_size, hidden_units, 1, activation='relu')
-        self.target_network = NeuralNetwork(state_size + action_size, hidden_units, 1, activation='relu')
+
+        input_size = state_size + action_size        
+        self.network = NeuralNetwork(input_size, hidden_units, 1, activation='relu')
+        self.target_network = NeuralNetwork(input_size, hidden_units, 1, activation='relu')
         
         self.target_network.weights = [np.copy(w) for w in self.network.weights]
         self.target_network.biases = [np.copy(b) for b in self.network.biases]

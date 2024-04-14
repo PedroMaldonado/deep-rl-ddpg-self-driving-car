@@ -1,74 +1,89 @@
 import numpy as np
+import argparse
+import time
 from gym_torcs import TorcsEnv
-from replay_buffer import ReplayBuffer
 from actor import ActorNetwork
 from critic import CriticNetwork
+from replay_buffer import ReplayBuffer
 
-# Assuming that ActorNetwork and CriticNetwork classes have been imported
-# from actor import ActorNetwork
-# from critic import CriticNetwork
+np.random.seed(1337)  # For reproducibility
 
-class GaussianNoise:
-    def __init__(self, action_dimension, sigma=0.2):
-        self.action_dimension = action_dimension
-        self.sigma = sigma
-
-    def __call__(self):
-        return np.random.normal(0, self.sigma, self.action_dimension)
-
-def play(train_indicator=1):
+def play(train_indicator):
     buffer_size = 100000
     batch_size = 32
-    gamma = 0.99  # discount factor
-    tau = 0.001  # for soft update of target parameters
-    lra = 0.0001  # learning rate for actor
-    lrc = 0.001   # learning rate for critic
+    gamma = 0.99    # discount factor
+    tau = 0.001     # Target Network HyperParameter
+    lra = 0.0001    # Learning rate for Actor
+    lrc = 0.001     # Learning rate for Critic
 
-    action_dim = 1  # single continuous action
-    state_dim = 21  # dimension of the state space in TORCS
+    action_dim = 1  # Steering angle
+    state_dim = 21  # num of sensors input
+
+    episodes_num = 10
+    max_steps = 1000
 
     env = TorcsEnv(vision=False, throttle=False, gear_change=False)
-    actor = ActorNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[300, 600], tau=tau, lr=lra)
-    critic = CriticNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[300, 600], tau=tau, lr=lrc)
-    buffer = ReplayBuffer(buffer_size, state_dim, action_dim)
+    actor = ActorNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[21, 21],  tau=tau, lr=lra)
+    critic = CriticNetwork(state_size=state_dim, action_size=action_dim, hidden_units=[21, 21],  tau=tau, lr=lrc)
+    buffer = ReplayBuffer(max_size=buffer_size, input_shape=state_dim, n_actions=action_dim)
 
-    noise = GaussianNoise(action_dim)
+    for i in range(episodes_num):
+        print("Episode : {} Replay buffer {}".format(i, len(buffer)))
+        ob = env.reset(relaunch=True if i % 3 == 0 else False)
 
-    for episode in range(100):
-        state = env.reset()
+        state = np.hstack((ob.angle, ob.track, ob.trackPos))
         total_reward = 0
 
-        for step in range(1000):
-            action = actor.network.forward_propagate(state.reshape(1, state_dim)) + noise()
-            new_state, reward, done, _ = env.step(action.flatten())
+        for j in range(max_steps):
+            state = state.reshape(1, -1)
+            # action_predicted = actor.network.forward_propagate(state.reshape(1, state_dim))  # Correct reshaping
+            action_predicted = actor.network.forward_propagate(state)  # Correct reshaping
+            action_noisy = action_predicted + np.random.normal(0, 0.1, size=action_dim)  # Add some noise for exploration
 
-            buffer.add((state, action, reward, new_state, done))
-            total_reward += reward
-            state = new_state
+            observation, reward, done, info = env.step(action_noisy.flatten())
+            new_state = np.hstack((observation.angle, observation.track, observation.trackPos))
+            buffer.add((state, action_noisy, reward, new_state, done))
 
-            if buffer.cur_size > batch_size:
+            if len(buffer) > batch_size:
                 batch = buffer.get_batch(batch_size)
-                states = np.array([e[0] for e in batch])
-                actions = np.array([e[1] for e in batch])
-                rewards = np.array([e[2] for e in batch])
-                new_states = np.array([e[3] for e in batch])
-                dones = np.array([e[4] for e in batch])
+                states, actions, rewards, next_states, dones = zip(*batch)
 
-                target_actions = actor.target_network.forward_propagate(new_states)
-                target_q_values = critic.target_network.forward_propagate(np.hstack([new_states, target_actions]))
+                # states = np.array(states)
+                # actions = np.array(actions)
+                rewards = np.array(rewards)
+                # next_states = np.array(next_states)
+                dones = np.array(dones)
 
-                y = np.asarray([rewards[i] + gamma * target_q_values[i] * (1 - dones[i]) for i in range(batch_size)])
+                states = np.array(states).reshape(-1, state_dim)
+                next_states = np.array(next_states).reshape(-1, state_dim)
+                actions = np.array(actions).reshape(-1, action_dim)
+                
+                print("states shape: {}, actions shape: {}, rewards shape: {}, next_states shape: {}, dones shape: {}".format(states.shape, actions.shape, rewards.shape, next_states.shape, dones.shape))
+                next_actions = actor.target_network.forward_propagate(next_states)
+                combined_state_action = np.hstack([next_states, next_actions])
 
-                critic.train(states, actions, y)
-                action_gradients = np.array(critic.compute_action_gradients(states, actor.network.forward_propagate(states)))
-                actor.train(states, action_gradients)
+                target_q_values = critic.target_network.forward_propagate(combined_state_action)
+                y_t = rewards + gamma * np.multiply((1 - dones), target_q_values.flatten())
+
+                critic.train(states, actions, y_t)
+                grads = critic.compute_action_gradients(states, actions)
+                actor.train(states, grads)
+
                 actor.update_target_network()
                 critic.update_target_network()
+
+            total_reward += reward
+            state = new_state
 
             if done:
                 break
 
-        print("Episode {}, Total Reward: {}".format(episode+1,total_reward))
+        print("Episode: {}, Total Reward: {}".format(i, total_reward))
+
+    env.end()
 
 if __name__ == "__main__":
-    play(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--train", type=int, help="train indicator", default=0)
+    args = parser.parse_args()
+    play(args.train)
