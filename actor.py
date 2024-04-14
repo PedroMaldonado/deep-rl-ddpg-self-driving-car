@@ -1,5 +1,5 @@
 import numpy as np
-from OOPNN import NeuralNetwork
+from OOPNNenhanced import NeuralNetwork
 
 class ActorNetwork:
     def __init__(self, state_size, action_size, hidden_units, tau=0.001, lr=0.001):
