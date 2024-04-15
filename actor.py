@@ -9,8 +9,8 @@ class ActorNetwork:
         self.lr = lr
         
         # Initialize primary and target networks with tanh activation for the output layer
-        self.network = NeuralNetwork(state_size, hidden_units + [action_size], activation='relu')
-        self.target_network = NeuralNetwork(state_size, hidden_units + [action_size], activation='relu')
+        self.network = NeuralNetwork(state_size, hidden_units, action_size, activation='relu', output_activation='tanh')
+        self.target_network = NeuralNetwork(state_size, hidden_units, action_size, activation='relu', output_activation='tanh')
         
         # Manually copy weights for target network initialization
         self.target_network.weights = [np.copy(w) for w in self.network.weights]

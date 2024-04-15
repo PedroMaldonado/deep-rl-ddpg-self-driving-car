@@ -1,7 +1,8 @@
 import numpy as np
 
 class NeuralNetwork:
-    def __init__(self, input_size, hidden_sizes, output_size, activation='relu'):
+    def __init__(self, input_size, hidden_sizes, output_size, activation='relu', output_activation=None):
+        output_activation = output_activation if output_activation else activation
         self.layer_sizes = [input_size] + hidden_sizes + [output_size]
         self.activation = activation  # 'relu' for hidden layers, potentially 'tanh' for the output layer
         self.weights = []
@@ -9,30 +10,50 @@ class NeuralNetwork:
 
         np.random.seed(42)  # Seed for reproducibility
 
-        
+        # for i in range(len(self.layer_sizes) - 1):
+        #     # He initialization for ReLU or Glorot initialization for tanh and sigmoid
+        #     if self.activation == 'relu' and i < len(self.layer_sizes) - 2:
+        #         std = np.sqrt(2 / self.layer_sizes[i])  # He initialization
+        #     else:
+        #         limit = np.sqrt(6 / (self.layer_sizes[i] + self.layer_sizes[i + 1]))  # Glorot initialization
+        #         self.weights.append(np.random.uniform(-limit, limit, (self.layer_sizes[i + 1], self.layer_sizes[i])))
+        #     self.biases.append(np.zeros((self.layer_sizes[i + 1], 1)))
+
+        # for i in range(len(self.layer_sizes)-1):
+        #     if i == len(self.layer_sizes) - 2:  # Last layer uses output activation
+        #         std = np.sqrt(2. / (self.layer_sizes[i] + self.layer_sizes[i+1])) if output_activation == 'relu' else np.sqrt(1. / (self.layer_sizes[i] + self.layer_sizes[i+1]))
+        #     else:
+        #         std = np.sqrt(2. / (self.layer_sizes[i] + self.layer_sizes[i+1]))
+        #     self.weights.append(std * np.random.randn(self.layer_sizes[i+1], self.layer_sizes[i]))
+        #     self.biases.append(np.zeros((self.layer_sizes[i+1], 1)))
+
+
         for i in range(len(self.layer_sizes) - 1):
-            # He initialization for ReLU or Glorot initialization for tanh and sigmoid
-            if self.activation == 'relu' and i < len(self.layer_sizes) - 2:
-                std = np.sqrt(2 / self.layer_sizes[i])  # He initialization
-            else:
-                limit = np.sqrt(6 / (self.layer_sizes[i] + self.layer_sizes[i + 1]))  # Glorot initialization
-                self.weights.append(np.random.uniform(-limit, limit, (self.layer_sizes[i + 1], self.layer_sizes[i])))
-            self.biases.append(np.zeros((self.layer_sizes[i + 1], 1)))
+            self.weights.append(np.random.randn(self.layer_sizes[i+1], self.layer_sizes[i]) * np.sqrt(2. / self.layer_sizes[i]))
+            self.biases.append(np.zeros((self.layer_sizes[i+1], 1)))
 
     def forward_propagate(self, X):
-        X = X.reshape(-1, 1)  # Ensure input is a column vector
+        X = X.reshape(self.layer_sizes[0], -1)  # Ensure input is a column vector
         activations = [X]
         for index, (weight, bias) in enumerate(zip(self.weights, self.biases)):
+
+            print("Weight shape:", weight.shape, "Activation shape:", activations[-1].shape)
             z = np.dot(weight, activations[-1]) + bias
             a = self.apply_activation(z, index)
             activations.append(a)
-        return activations
+        return activations[-1]
+
+    # def apply_activation(self, z, index):
+    #     if index < len(self.weights) - 1:
+    #         if self.activation == 'relu':
+    #             return np.maximum(0, z)
+    #     return np.tanh(z)
 
     def apply_activation(self, z, index):
         if index < len(self.weights) - 1:
-            if self.activation == 'relu':
-                return np.maximum(0, z)
-        return np.tanh(z)
+            return np.maximum(0, z)  # ReLU
+        else:
+            return np.tanh(z)
 
     def backward_propagate(self, y, activations):
         errors = [y - activations[-1]]

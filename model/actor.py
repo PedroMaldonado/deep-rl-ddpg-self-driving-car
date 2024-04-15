@@ -18,7 +18,7 @@ class ActorNetwork:
 
         self.model, self.model_states = self.generate_model()
         model_weights = self.model.trainable_weights
-
+        
         self.target_model, _ = self.generate_model()
 
         # Generate tensors to hold the gradients for Policy Gradient update

@@ -1,3 +1,5 @@
+# IMPLEMENTACION
+
 import random
 import numpy as np
 # Is a double-ended queue that allows append and pop operations from both ends. 
@@ -16,11 +18,10 @@ class ReplayBuffer(object):
         self.max_size = max_size #  The maximum number of experiences the buffer can hold.
         self.cur_size = 0 #  The current number of experiences in the buffer.
         self.buffer = deque() #  The buffer that holds the experiences
-        # self.new_buffer = deque() 
-        # self.action_memory = deque() # np.zeros((self.men_size, n_actions))
-        # self.reward_memory = deque() # np.zeros(self.mem_size)
-        # self.terminal_memory = deque() # np.zeros(self.mem_size, dtype=np.bool)
-
+        
+    def __len__(self):
+        return self.cur_size
+        
     def add(self, experience):
         # Add experience to the buffer
         # If the buffer is not full, add the experience
@@ -49,9 +50,8 @@ class ReplayBuffer(object):
         # sample_size = size if size <= self.cur_size else self.cur_size
         # return random.sample(self.buffer, sample_size)
     
-    def __len__(self):
-        return self.cur_size
-
+    
+    
     def clear(self):
         self.buffer.clear()
         self.cur_size = 0
